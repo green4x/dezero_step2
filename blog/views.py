@@ -1,16 +1,24 @@
 from django.shortcuts import render, get_object_or_404
-from .models import Post, Comment
-from .form import EmailPostForm, CommentForm
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.views.generic import ListView
 from django.core.mail import send_mail
 
+from .models import Post, Comment
+from .form import EmailPostForm, CommentForm
+from taggit.models import Tag
 
-def post_list(request):
+
+def post_list(request, tag_slug=None):
     # posts = Post.published.all()
     object_list = Post.published.all()
     paginator = Paginator(object_list, 3)
     page = request.GET.get('page')
+    tag = None
+
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        object_list = object_list.filter(tags__in=[tag])
+
     try:
         posts = paginator.page(page)
     except PageNotAnInteger:
@@ -22,7 +30,8 @@ def post_list(request):
     return render(request,
                   'blog/post/list.html',
                   {'page': page,
-                   'posts': posts})
+                   'posts': posts,
+                   'tag': tag})
 
 class PostListView(ListView):
     queryset = Post.published.all()
@@ -48,8 +57,8 @@ def post_detail(request, year, month, day, post):
             new_comment.post = post
             # Save the comment to the database
             new_comment.save()
-        else:
-            comment_form = CommentForm()
+    else:
+        comment_form = CommentForm()
 
     return render(request,
                   'blog/post/detail.html',
